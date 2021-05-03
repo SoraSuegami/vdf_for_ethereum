@@ -3,7 +3,7 @@
 use crate::utilities::ErrorReason;
 use curv::arithmetic::traits::Modulo;
 use curv::arithmetic::traits::Samplable;
-use curv::arithmetic::{traits::*, BigInt};
+pub use curv::arithmetic::{traits::*, BigInt};
 use serde::{Deserialize, Serialize};
 use utilities::{get_trusted_rsa_modules, h_g, hash_to_prime};
 
