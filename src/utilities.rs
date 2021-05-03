@@ -60,8 +60,9 @@ pub enum ErrorReason {
     MisMatchedVDF,
 }
 
-pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> BigInt {
+pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> (BigInt,u32) {
     let mut candidate = BigInt::zero();//= Keccak256::create_hash(&[&setup.N, &setup.t, g, y]);
+    let mut nonce = 0;
     for i in 0..(1<<16) {
         candidate = _single_hash(g, y, i);
         //println!("hash to prime hash {}",hex::encode(&candidate.to_bytes()));
@@ -69,10 +70,11 @@ pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> BigInt {
             candidate = candidate + BigInt::one();
         }
         if is_prime(&candidate) {
+            nonce = i;
             break;
         }
     }
-    candidate
+    (candidate, nonce)
 }
 
 fn _single_hash(g: &BigInt, y: &BigInt, nonce: u32) -> BigInt {

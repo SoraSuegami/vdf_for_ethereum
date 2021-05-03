@@ -22,6 +22,8 @@ pub struct SolvedVDF {
     vdf_instance: UnsolvedVDF,
     pub y: BigInt,
     pub pi: BigInt,
+    pub q: BigInt,
+    pub nonce: u32
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -69,7 +71,7 @@ impl UnsolvedVDF {
             i = i + BigInt::one();
         }
         //println!("before to prime {}", hex::encode(&y.to_bytes()));
-        let l = hash_to_prime(&g, &y);
+        let (l,nonce) = hash_to_prime(&g, &y);
         //println!("l is {}",hex::encode(&l.to_bytes()));
 
         //algorithm 4 from https://eprint.iacr.org/2018/623.pdf
@@ -77,7 +79,7 @@ impl UnsolvedVDF {
         let mut i = BigInt::zero();
         let mut b: BigInt;
         let mut r = BigInt::one();
-        let mut r2: BigInt;
+        let mut r2: BigInt = BigInt::zero();
         let two = BigInt::from(2);
         let mut pi = BigInt::one();
         let mut g_b: BigInt;
@@ -93,10 +95,17 @@ impl UnsolvedVDF {
         }
         //println!("pi {}",hex::encode(&pi.to_bytes()));
 
+        // get helper data "q"
+        let u1 = BigInt::mod_pow(&pi, &l, &N);
+        let u2 = BigInt::mod_pow(&g, &r2, &N);
+        let q = u1.mul(&u2).div_floor(&N);
+
         let vdf = SolvedVDF {
             vdf_instance: unsolved_vdf.clone(),
             y,
             pi,
+            q,
+            nonce
         };
         vdf
     }
@@ -117,7 +126,7 @@ impl SolvedVDF {
             return Err(ErrorReason::VDFVerifyError);
         }
 
-        let l = hash_to_prime(&g, &self.y);
+        let (l,_) = hash_to_prime(&g, &self.y);
 
         let r = BigInt::mod_pow(&BigInt::from(2), &self.vdf_instance.setup.t, &l);
         let pi_l = BigInt::mod_pow(&self.pi, &l, &N);
