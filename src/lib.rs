@@ -123,7 +123,7 @@ impl UnsolvedVDF {
         vdf
     }
 
-    pub fn from_parameter(parameter: SerializedVDFParameter) -> Self {
+    pub fn from_parameter(parameter: &SerializedVDFParameter) -> Self {
         let t = BigInt::from(parameter.t);
         let setup = SetupForVDF::public_setup(&t);
         let x = BigInt::from_bytes(&parameter.x);
@@ -135,7 +135,7 @@ impl UnsolvedVDF {
 }
 
 impl SolvedVDF {
-    pub fn from_parameter_and_proof(parameter: SerializedVDFParameter, proof: SerializedVDFProof) -> Self {
+    pub fn from_parameter_and_proof(parameter: &SerializedVDFParameter, proof: &SerializedVDFProof) -> Self {
         let unsolved_vdf = UnsolvedVDF::from_parameter(parameter);
         let y = BigInt::from_bytes(&proof.y);
         let pi = BigInt::from_bytes(&proof.pi);
@@ -178,7 +178,7 @@ impl SolvedVDF {
 }
 
 impl SerializedVDFProof {
-    pub fn verify_with_parameter(self, parameter: SerializedVDFParameter) -> Result<(), ErrorReason> {
+    pub fn verify_with_parameter(&self, parameter: &SerializedVDFParameter) -> Result<(), ErrorReason> {
         let solved_vdf = SolvedVDF::from_parameter_and_proof(parameter, self);
         let unsolved_vdf = &solved_vdf.vdf_instance;
         solved_vdf.verify(unsolved_vdf)
