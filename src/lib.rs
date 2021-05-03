@@ -5,11 +5,11 @@ use curv::arithmetic::traits::Modulo;
 use curv::arithmetic::traits::Samplable;
 use curv::arithmetic::{traits::*, BigInt};
 use serde::{Deserialize, Serialize};
-use utilities::{compute_rsa_modulus, h_g, hash_to_prime};
+use utilities::{get_trusted_rsa_modules, h_g, hash_to_prime};
 
-const BIT_LENGTH: usize = 4096;
 const SEED_LENGTH: usize = 256;
 pub mod utilities;
+pub(crate) mod keccak256;
 
 pub struct ElGamal;
 pub struct ExponentElGamal;
@@ -39,7 +39,7 @@ pub struct UnsolvedVDF {
 impl SetupForVDF {
     pub fn public_setup(t: &BigInt) -> Self {
         // todo: setup can also be used to define H_G. for example pick random domain separator
-        let N = compute_rsa_modulus(BIT_LENGTH);
+        let N = get_trusted_rsa_modules();
         SetupForVDF { t: t.clone(), N }
     }
 
@@ -60,6 +60,7 @@ impl UnsolvedVDF {
         let t = unsolved_vdf.setup.t.clone();
 
         let g = h_g(&N, &x);
+        //println!("g is {}", hex::encode(&g.to_bytes()));
         let mut y = g.clone();
         let mut i = BigInt::zero();
 
@@ -67,7 +68,9 @@ impl UnsolvedVDF {
             y = BigInt::mod_mul(&y, &y, &N);
             i = i + BigInt::one();
         }
-        let l = hash_to_prime(&unsolved_vdf.setup, &g, &y);
+        //println!("before to prime {}", hex::encode(&y.to_bytes()));
+        let l = hash_to_prime(&g, &y);
+        //println!("l is {}",hex::encode(&l.to_bytes()));
 
         //algorithm 4 from https://eprint.iacr.org/2018/623.pdf
         // long division TODO: consider alg 5 instead
@@ -88,6 +91,7 @@ impl UnsolvedVDF {
             pi = BigInt::mod_mul(&pi, &g_b, &N);
             i = i + BigInt::one();
         }
+        //println!("pi {}",hex::encode(&pi.to_bytes()));
 
         let vdf = SolvedVDF {
             vdf_instance: unsolved_vdf.clone(),
@@ -113,7 +117,7 @@ impl SolvedVDF {
             return Err(ErrorReason::VDFVerifyError);
         }
 
-        let l = hash_to_prime(&self.vdf_instance.setup, &g, &self.y);
+        let l = hash_to_prime(&g, &self.y);
 
         let r = BigInt::mod_pow(&BigInt::from(2), &self.vdf_instance.setup.t, &l);
         let pi_l = BigInt::mod_pow(&self.pi, &l, &N);
@@ -134,18 +138,28 @@ mod tests {
     use curv::arithmetic::traits::Samplable;
     use curv::BigInt;
     use std::time::Instant;
+    use curv::cryptographic_primitives::hashing::traits::Hash;
+    use curv::arithmetic::Converter;
+    use super::keccak256::Keccak256;
+    use hex;
 
     #[test]
     fn test_vdf_valid_proof() {
-        let t = BigInt::sample(13);
+        let t = BigInt::from_str_radix("13",10).unwrap();
         let setup = SetupForVDF::public_setup(&t);
 
         let mut i = 0;
         while i < 10 {
-            let unsolved_vdf = SetupForVDF::pick_challenge(&setup);
+            let seed_hash = Keccak256::create_hash_from_slice(&[i;32]);
+            println!("input at {}, {}", i, hex::encode(&seed_hash.to_bytes()));
+            let unsolved_vdf = UnsolvedVDF {
+                x: seed_hash,
+                setup: setup.clone()
+            };
             let start = Instant::now();
             let solved_vdf = UnsolvedVDF::eval(&unsolved_vdf);
             let duration1 = start.elapsed();
+            println!("answer at {}, {}", i, hex::encode(&solved_vdf.y.to_bytes()));
             let start = Instant::now();
             // here unsolved_vdf is the version that was kept by the challenger
             let res = solved_vdf.verify(&unsolved_vdf);

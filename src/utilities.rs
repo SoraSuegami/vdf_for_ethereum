@@ -4,25 +4,25 @@ use crate::SetupForVDF;
 use curv::arithmetic::traits::*;
 use curv::arithmetic::BitManipulation;
 use curv::arithmetic::{Integer, One, Zero};
-use curv::cryptographic_primitives::hashing::hash_sha512::HSha512;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::BigInt;
 use std::error::Error;
 use std::fmt;
-use std::ops::Shl;
+use hex;
+use crate::keccak256::Keccak256;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ProofError;
 
-const DIGEST_SIZE: usize = 512;
+const DIGEST_SIZE: usize = 256;
 
 // We work in G+ group as defined in https://eprint.iacr.org/2018/712.pdf section 6
 // "when computing in this group it suffices to represent a coset {x,−x} by a single number, either x or −x, whichever is in the range [0,N/2)"
 // helper function H_G(x) \in Z_N*
-pub fn h_g(N: &BigInt, x: &BigInt) -> BigInt {
+/*pub fn h_g(N: &BigInt, x: &BigInt) -> BigInt {
     let hash_vec_len = N.bit_length() / DIGEST_SIZE + 1; // adding one sha256 is more efficient then rejection sampling
     let hash_vector = (0..hash_vec_len)
-        .map(|j| HSha512::create_hash(&[&x, &BigInt::from(j as u32)]))
+        .map(|j| Keccak256::create_hash(&[&x, &BigInt::from(j as u32)]))
         .collect::<Vec<BigInt>>();
 
     let mut res = hash_vector
@@ -33,6 +33,13 @@ pub fn h_g(N: &BigInt, x: &BigInt) -> BigInt {
     res = res.modulus(N);
 
     res
+}*/
+
+//simple but not optimized.
+//https://github.com/dignifiedquire/rust-accumulators/blob/master/src/hash.rs#L25
+pub fn h_g(N: &BigInt, x: &BigInt) -> BigInt {
+    let hash = Keccak256::create_hash(&[&x]);
+    hash
 }
 
 impl fmt::Display for ProofError {
@@ -52,22 +59,37 @@ pub enum ErrorReason {
     VDFVerifyError,
     MisMatchedVDF,
 }
-// The original paper suggests doing rejection sampling until H(N,g,t,y) is prime  (find smallest i st H(N,g,t,y,i) is prime).
-// This is slower though, so instead we can hash only once, and look for the primes nearby.
-// The problem is that you have a bias toward primes that are “first”.
-// For example, if you have p1 and p2=p1+2, then p1 will have a higher chance of appearing than p2.
-// credit: Adrian Hamelink
-pub fn hash_to_prime(setup: &SetupForVDF, g: &BigInt, y: &BigInt) -> BigInt {
-    // for safety margin we take 2 * lambda to be 512 bit
-    let mut candidate = HSha512::create_hash(&[&setup.N, &setup.t, g, y]);
 
-    if candidate.modulus(&BigInt::from(2)) == BigInt::zero() {
-        candidate = candidate + BigInt::one();
-    }
-    while !is_prime(&candidate) {
-        candidate = candidate + BigInt::from(2);
+pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> BigInt {
+    let mut candidate = BigInt::zero();//= Keccak256::create_hash(&[&setup.N, &setup.t, g, y]);
+    for i in 0..(1<<16) {
+        candidate = _single_hash(g, y, i);
+        //println!("hash to prime hash {}",hex::encode(&candidate.to_bytes()));
+        if candidate.modulus(&BigInt::from(2)) == BigInt::zero() {
+            candidate = candidate + BigInt::one();
+        }
+        if is_prime(&candidate) {
+            break;
+        }
     }
     candidate
+}
+
+fn _single_hash(g: &BigInt, y: &BigInt, nonce: u32) -> BigInt {
+    let g_bytes = g.to_bytes();
+    let y_bytes = y.to_bytes();
+    let mut nonce_bytes = [0;32];
+    nonce_bytes[28..32].copy_from_slice(&nonce.to_be_bytes()[0..4]);
+    let mut inputs = Vec::new();
+    inputs.extend_from_slice(&g_bytes);
+    inputs.extend_from_slice(&y_bytes);
+    inputs.extend_from_slice(&nonce_bytes);
+    Keccak256::create_hash_from_slice(&inputs)
+}
+
+pub fn get_trusted_rsa_modules() -> BigInt {
+    let value = hex::decode(&TRUSTED_RSA_MODULE_2048).unwrap();
+    BigInt::from_bytes(&value)
 }
 
 pub fn compute_rsa_modulus(bit_length: usize) -> BigInt {
@@ -380,3 +402,6 @@ static SMALL_PRIMES: [u32; 2048] = [
     17609, 17623, 17627, 17657, 17659, 17669, 17681, 17683, 17707, 17713, 17729,
     17737, 17747, 17749, 17761, 17783, 17789, 17791, 17807, 17827, 17837, 17839,
     17851, 17863 ];
+
+//https://en.wikipedia.org/wiki/RSA_numbers#RSA-2048
+const TRUSTED_RSA_MODULE_2048:&'static str = "c7970ceedcc3b0754490201a7aa613cd73911081c790f5f1a8726f463550bb5b7ff0db8e1ea1189ec72f93d1650011bd721aeeacc2acde32a04107f0648c2813a31f5b0b7765ff8b44b4b6ffc93384b646eb09c7cf5e8592d40ea33c80039f35b4f14a04b51f7bfd781be4d1673164ba8eb991c2c4d730bbbe35f592bdef524af7e8daefd26c66fc02c479af89d64d373f442709439de66ceb955f3ea37d5159f6135809f85334b5cb1813addc80cd05609f10ac6a95ad65872c909525bdad32bc729592642920f24c61dc5b3c3b7923e56b16a4d9d373d8721f24a3fc0f1b3131f55615172866bccc30f95054c824e733a5eb6817f7bc16399d48c6361cc7e5";
