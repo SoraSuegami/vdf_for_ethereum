@@ -22,7 +22,7 @@ hex = "0.4.2"
 [dependencies.curv]
 package = "curv"
 git = "https://github.com/ZenGo-X/curv"
-version = "0.6"
+version = "0.7"
 default-features = false
 
 [features]
