@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use utilities::{get_trusted_rsa_modules, h_g, hash_to_prime};
 
 const SEED_LENGTH: usize = 256;
+const GROUP_SIZE: usize = 32;
+const NONCE_SIZE: usize = 4;
 pub mod utilities;
 pub(crate) mod keccak256;
 
@@ -45,9 +47,9 @@ pub struct SerializedVDFParameter {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SerializedVDFProof {
-    pub y: Vec<u8>,
-    pub pi: Vec<u8>,
-    pub q: Vec<u8>,
+    pub y: [u8;GROUP_SIZE],
+    pub pi: [u8;GROUP_SIZE],
+    pub q: [u8;GROUP_SIZE],
     pub nonce: u32
 }
 
@@ -178,10 +180,30 @@ impl SolvedVDF {
 }
 
 impl SerializedVDFProof {
+    pub const SIZE:usize = GROUP_SIZE*3+NONCE_SIZE;
+
     pub fn verify_with_parameter(&self, parameter: &SerializedVDFParameter) -> Result<(), ErrorReason> {
         let solved_vdf = SolvedVDF::from_parameter_and_proof(parameter, self);
         let unsolved_vdf = &solved_vdf.vdf_instance;
         solved_vdf.verify(unsolved_vdf)
+    }
+
+    pub fn from_bytes(_bytes:&[u8]) -> Self {
+        assert!(_bytes.len()==Self::SIZE, "invalid size");
+        let mut y = [0;GROUP_SIZE];
+        let mut pi = [0;GROUP_SIZE];
+        let mut q = [0;GROUP_SIZE];
+        let mut nonce = [0;NONCE_SIZE];
+        y.copy_from_slice(&_bytes[0..GROUP_SIZE]);
+        pi.copy_from_slice(&_bytes[GROUP_SIZE..GROUP_SIZE*2]);
+        q.copy_from_slice(&_bytes[GROUP_SIZE*2..GROUP_SIZE*3]);
+        nonce.copy_from_slice(&_bytes[GROUP_SIZE*3..GROUP_SIZE*3+NONCE_SIZE]);
+        Self {
+            y,
+            pi,
+            q,
+            nonce:u32::from_be_bytes(nonce)
+        }
     }
 }
 
