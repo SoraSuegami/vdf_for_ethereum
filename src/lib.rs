@@ -205,6 +205,30 @@ impl SerializedVDFProof {
             nonce:u32::from_be_bytes(nonce)
         }
     }
+
+    pub fn compute(_t:u64, _x:&[u8]) -> Result<Self,ErrorReason> {
+        let t = BigInt::from_bytes(&_t.to_be_bytes()[..]);
+        let x = BigInt::from_bytes(_x);
+        let setup = SetupForVDF::public_setup(&t);
+        let unsolved_vdf = UnsolvedVDF {
+            x,
+            setup: setup.clone()
+        };
+        let solved_vdf = UnsolvedVDF::eval(&unsolved_vdf);
+        solved_vdf.verify(&unsolved_vdf)?;
+        let mut y = [0;GROUP_SIZE];
+        let mut pi = [0;GROUP_SIZE];
+        let mut q = [0;GROUP_SIZE];
+        y.copy_from_slice(&solved_vdf.y.to_bytes()[0..GROUP_SIZE]);
+        pi.copy_from_slice(&solved_vdf.pi.to_bytes()[0..GROUP_SIZE]);
+        q.copy_from_slice(&solved_vdf.q.to_bytes()[0..GROUP_SIZE]);
+        Ok(Self {
+            y,
+            pi,
+            q,
+            nonce:solved_vdf.nonce
+        })
+    }
 }
 
 
