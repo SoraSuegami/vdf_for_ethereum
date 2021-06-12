@@ -206,6 +206,16 @@ impl SerializedVDFProof {
         }
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&self.y[..]);
+        bytes.extend_from_slice(&self.pi[..]);
+        bytes.extend_from_slice(&self.q[..]);
+        let nonce_bytes = self.nonce.to_be_bytes();
+        bytes.extend_from_slice(&nonce_bytes[..]);
+        bytes
+    }
+
     pub fn compute(_t:u64, _x:&[u8]) -> Result<Self,ErrorReason> {
         let t = BigInt::from_bytes(&_t.to_be_bytes()[..]);
         let x = BigInt::from_bytes(_x);
