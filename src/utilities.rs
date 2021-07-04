@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use crate::SetupForVDF;
 use curv::arithmetic::traits::*;
 use curv::arithmetic::BitManipulation;
 use curv::arithmetic::{Integer, One, Zero};
@@ -65,7 +64,6 @@ pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> (BigInt,u32) {
     let mut nonce = 0;
     for i in 0..(1<<16) {
         candidate = _single_hash(g, y, i);
-        //println!("hash to prime hash {}",hex::encode(&candidate.to_bytes()));
         if candidate.modulus(&BigInt::from(2)) == BigInt::zero() {
             candidate = candidate + BigInt::one();
         }
@@ -78,7 +76,8 @@ pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> (BigInt,u32) {
 }
 
 fn _single_hash(g: &BigInt, y: &BigInt, nonce: u32) -> BigInt {
-    let g_bytes = g.to_bytes();
+    let mut g_bytes = [0;256];
+    g_bytes[32*7..256].copy_from_slice(&g.to_bytes()[0..32]);
     let y_bytes = y.to_bytes();
     let mut nonce_bytes = [0;32];
     nonce_bytes[28..32].copy_from_slice(&nonce.to_be_bytes()[0..4]);

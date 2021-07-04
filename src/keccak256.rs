@@ -1,4 +1,3 @@
-use crate::SetupForVDF;
 use curv::arithmetic::traits::*;
 use curv::arithmetic::BitManipulation;
 use curv::arithmetic::{Integer, One, Zero};

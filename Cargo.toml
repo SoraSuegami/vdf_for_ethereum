@@ -23,7 +23,5 @@ hex = "0.4.2"
 package = "curv"
 git = "https://github.com/ZenGo-X/curv"
 version = "0.7"
-default-features = false
 
 [features]
-default = ["curv/num-bigint"]
