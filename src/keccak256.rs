@@ -5,11 +5,11 @@ use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::elliptic::curves::traits::ECPoint;
 use curv::elliptic::curves::traits::ECScalar;
 use curv::BigInt;
+use ethereum_keystore::keccak256;
+use hex;
 use std::error::Error;
 use std::fmt;
 use std::ops::Shl;
-use hex;
-use ethereum_keystore::keccak256;
 
 pub struct Keccak256;
 

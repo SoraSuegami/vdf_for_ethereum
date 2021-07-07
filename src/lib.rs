@@ -10,9 +10,8 @@ use utilities::{get_trusted_rsa_modules, h_g, hash_to_prime};
 const SEED_LENGTH: usize = 32;
 const GROUP_SIZE: usize = 256;
 const NONCE_SIZE: usize = 4;
-pub mod utilities;
 pub(crate) mod keccak256;
-
+pub mod utilities;
 
 /// Wesolowski VDF, based on https://eprint.iacr.org/2018/712.pdf.
 /// Original paper: https://eprint.iacr.org/2018/623.pdf
@@ -23,7 +22,7 @@ pub struct SolvedVDF {
     pub y: BigInt,
     pub pi: BigInt,
     pub q: BigInt,
-    pub nonce: u32
+    pub nonce: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -41,18 +40,16 @@ pub struct UnsolvedVDF {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SerializedVDFParameter {
     pub x: Vec<u8>,
-    pub t: u64
+    pub t: u64,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SerializedVDFProof {
-    pub y: [u8;GROUP_SIZE],
-    pub pi: [u8;GROUP_SIZE],
-    pub q: [u8;GROUP_SIZE],
-    pub nonce: u32
+    pub y: [u8; GROUP_SIZE],
+    pub pi: [u8; GROUP_SIZE],
+    pub q: [u8; GROUP_SIZE],
+    pub nonce: u32,
 }
-
 
 impl SetupForVDF {
     pub fn public_setup(t: &BigInt) -> Self {
@@ -86,7 +83,7 @@ impl UnsolvedVDF {
             i = i + BigInt::one();
         }
         //println!("before to prime {}", hex::encode(&y.to_bytes()));
-        let (l,nonce) = hash_to_prime(&g, &y);
+        let (l, nonce) = hash_to_prime(&g, &y);
 
         //algorithm 4 from https://eprint.iacr.org/2018/623.pdf
         // long division TODO: consider alg 5 instead
@@ -118,7 +115,7 @@ impl UnsolvedVDF {
             y,
             pi,
             q,
-            nonce
+            nonce,
         };
         vdf
     }
@@ -127,15 +124,15 @@ impl UnsolvedVDF {
         let t = BigInt::from(parameter.t);
         let setup = SetupForVDF::public_setup(&t);
         let x = BigInt::from_bytes(&parameter.x);
-        Self {
-            x,
-            setup
-        }
+        Self { x, setup }
     }
 }
 
 impl SolvedVDF {
-    pub fn from_parameter_and_proof(parameter: &SerializedVDFParameter, proof: &SerializedVDFProof) -> Self {
+    pub fn from_parameter_and_proof(
+        parameter: &SerializedVDFParameter,
+        proof: &SerializedVDFProof,
+    ) -> Self {
         let unsolved_vdf = UnsolvedVDF::from_parameter(parameter);
         let y = BigInt::from_bytes(&proof.y);
         let pi = BigInt::from_bytes(&proof.pi);
@@ -145,7 +142,7 @@ impl SolvedVDF {
             y,
             pi,
             q,
-            nonce: proof.nonce
+            nonce: proof.nonce,
         }
     }
 
@@ -163,7 +160,7 @@ impl SolvedVDF {
             return Err(ErrorReason::VDFVerifyError);
         }
 
-        let (l,_) = hash_to_prime(&g, &self.y);
+        let (l, _) = hash_to_prime(&g, &self.y);
 
         let r = BigInt::mod_pow(&BigInt::from(2), &self.vdf_instance.setup.t, &l);
         let pi_l = BigInt::mod_pow(&self.pi, &l, &N);
@@ -178,29 +175,32 @@ impl SolvedVDF {
 }
 
 impl SerializedVDFProof {
-    pub const SIZE:usize = GROUP_SIZE*3+NONCE_SIZE;
+    pub const SIZE: usize = GROUP_SIZE * 3 + NONCE_SIZE;
 
-    pub fn verify_with_parameter(&self, parameter: &SerializedVDFParameter) -> Result<(), ErrorReason> {
+    pub fn verify_with_parameter(
+        &self,
+        parameter: &SerializedVDFParameter,
+    ) -> Result<(), ErrorReason> {
         let solved_vdf = SolvedVDF::from_parameter_and_proof(parameter, self);
         let unsolved_vdf = &solved_vdf.vdf_instance;
         solved_vdf.verify(unsolved_vdf)
     }
 
-    pub fn from_bytes(_bytes:&[u8]) -> Self {
-        assert!(_bytes.len()==Self::SIZE, "invalid size");
-        let mut y = [0;GROUP_SIZE];
-        let mut pi = [0;GROUP_SIZE];
-        let mut q = [0;GROUP_SIZE];
-        let mut nonce = [0;NONCE_SIZE];
+    pub fn from_bytes(_bytes: &[u8]) -> Self {
+        assert!(_bytes.len() == Self::SIZE, "invalid size");
+        let mut y = [0; GROUP_SIZE];
+        let mut pi = [0; GROUP_SIZE];
+        let mut q = [0; GROUP_SIZE];
+        let mut nonce = [0; NONCE_SIZE];
         y.copy_from_slice(&_bytes[0..GROUP_SIZE]);
-        pi.copy_from_slice(&_bytes[GROUP_SIZE..GROUP_SIZE*2]);
-        q.copy_from_slice(&_bytes[GROUP_SIZE*2..GROUP_SIZE*3]);
-        nonce.copy_from_slice(&_bytes[GROUP_SIZE*3..GROUP_SIZE*3+NONCE_SIZE]);
+        pi.copy_from_slice(&_bytes[GROUP_SIZE..GROUP_SIZE * 2]);
+        q.copy_from_slice(&_bytes[GROUP_SIZE * 2..GROUP_SIZE * 3]);
+        nonce.copy_from_slice(&_bytes[GROUP_SIZE * 3..GROUP_SIZE * 3 + NONCE_SIZE]);
         Self {
             y,
             pi,
             q,
-            nonce:u32::from_be_bytes(nonce)
+            nonce: u32::from_be_bytes(nonce),
         }
     }
 
@@ -214,26 +214,26 @@ impl SerializedVDFProof {
         bytes
     }
 
-    pub fn compute(_t:u64, _x:&[u8]) -> Result<Self,ErrorReason> {
-        assert!(_x.len()==SEED_LENGTH,"invalid x length");
+    pub fn compute(_t: u64, _x: &[u8]) -> Result<Self, ErrorReason> {
+        assert!(_x.len() == SEED_LENGTH, "invalid x length");
         let t = BigInt::from_bytes(&_t.to_be_bytes()[..]);
         let x = BigInt::from_bytes(&_x);
         let setup = SetupForVDF::public_setup(&t);
         let unsolved_vdf = UnsolvedVDF {
             x,
-            setup: setup.clone()
+            setup: setup.clone(),
         };
         let solved_vdf = UnsolvedVDF::eval(&unsolved_vdf);
         solved_vdf.verify(&unsolved_vdf)?;
-        let mut y = [0;GROUP_SIZE];
-        let mut pi = [0;GROUP_SIZE];
-        let mut q = [0;GROUP_SIZE];
+        let mut y = [0; GROUP_SIZE];
+        let mut pi = [0; GROUP_SIZE];
+        let mut q = [0; GROUP_SIZE];
         let y_bytes = solved_vdf.y.to_bytes();
         let pi_bytes = solved_vdf.pi.to_bytes();
         let q_bytes = solved_vdf.q.to_bytes();
-        y[GROUP_SIZE-y_bytes.len()..GROUP_SIZE].copy_from_slice(&y_bytes[..]);
-        pi[GROUP_SIZE-pi_bytes.len()..GROUP_SIZE].copy_from_slice(&pi_bytes[..]);
-        q[GROUP_SIZE-q_bytes.len()..GROUP_SIZE].copy_from_slice(&q_bytes[..]);
+        y[GROUP_SIZE - y_bytes.len()..GROUP_SIZE].copy_from_slice(&y_bytes[..]);
+        pi[GROUP_SIZE - pi_bytes.len()..GROUP_SIZE].copy_from_slice(&pi_bytes[..]);
+        q[GROUP_SIZE - q_bytes.len()..GROUP_SIZE].copy_from_slice(&q_bytes[..]);
         /*for i in 0..y_bytes.len() {
             y[i] = y_bytes[i];
         }
@@ -248,37 +248,36 @@ impl SerializedVDFProof {
             y,
             pi,
             q,
-            nonce:solved_vdf.nonce
+            nonce: solved_vdf.nonce,
         })
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::keccak256::Keccak256;
     use super::SetupForVDF;
     use super::UnsolvedVDF;
-    use super::{SerializedVDFProof,SerializedVDFParameter};
+    use super::{SerializedVDFParameter, SerializedVDFProof};
     use curv::arithmetic::traits::Samplable;
-    use curv::BigInt;
-    use std::time::Instant;
-    use curv::cryptographic_primitives::hashing::traits::Hash;
     use curv::arithmetic::Converter;
-    use super::keccak256::Keccak256;
+    use curv::cryptographic_primitives::hashing::traits::Hash;
+    use curv::BigInt;
     use hex;
+    use std::time::Instant;
 
     #[test]
     fn test_vdf_valid_proof() {
-        let t = BigInt::from_str_radix("13",10).unwrap();
+        let t = BigInt::from_str_radix("13", 10).unwrap();
         let setup = SetupForVDF::public_setup(&t);
 
         let mut i = 0;
         while i < 10 {
-            let seed_hash = Keccak256::create_hash_from_slice(&[i;32]);
+            let seed_hash = Keccak256::create_hash_from_slice(&[i; 32]);
             println!("input at {}, {}", i, hex::encode(&seed_hash.to_bytes()));
             let unsolved_vdf = UnsolvedVDF {
                 x: seed_hash,
-                setup: setup.clone()
+                setup: setup.clone(),
             };
             let start = Instant::now();
             let solved_vdf = UnsolvedVDF::eval(&unsolved_vdf);
@@ -303,16 +302,17 @@ mod tests {
         let t = 13;
         let mut i = 0;
         while i < 10 {
-            let seed_hash = Keccak256::create_hash_from_slice(&[i;32]);
+            let seed_hash = Keccak256::create_hash_from_slice(&[i; 32]);
             println!("input at {}, {}", i, hex::encode(&seed_hash.to_bytes()));
 
-            let serialized_proof = SerializedVDFProof::compute(t,&seed_hash.to_bytes()).expect("Fail to compute vdf proof.");
+            let serialized_proof = SerializedVDFProof::compute(t, &seed_hash.to_bytes())
+                .expect("Fail to compute vdf proof.");
             let serialized_param = SerializedVDFParameter {
-                x:seed_hash.to_bytes(),
-                t
+                x: seed_hash.to_bytes(),
+                t,
             };
             serialized_proof.verify_with_parameter(&serialized_param);
-            i = i+1;
+            i = i + 1;
         }
     }
 }
