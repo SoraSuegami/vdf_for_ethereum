@@ -16,12 +16,13 @@ crate-type = ["lib"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-ether-keystore = "0.1.0"
+sha3 = "0.9.1"
 hex = "0.4.2"
 
 [dependencies.curv]
 package = "curv"
 git = "https://github.com/ZenGo-X/curv"
+tag = "v0.7.0"
 version = "0.7"
 
 [features]
