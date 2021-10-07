@@ -77,7 +77,7 @@ pub fn hash_to_prime(g: &BigInt, y: &BigInt) -> (BigInt, u32) {
 
 fn _single_hash(g: &BigInt, y: &BigInt, nonce: u32) -> BigInt {
     let mut g_bytes = [0; 256];
-    g_bytes[32 * 7 + (32-g.to_bytes().len())..256].copy_from_slice(&g.to_bytes()[..]);
+    g_bytes[32 * 7 + (32 - g.to_bytes().len())..256].copy_from_slice(&g.to_bytes()[..]);
     let y_bytes = y.to_bytes();
     let mut nonce_bytes = [0; 32];
     nonce_bytes[28..32].copy_from_slice(&nonce.to_be_bytes()[0..4]);
